@@ -98,7 +98,7 @@ export default function OverviewMap({ activeAlert, isAlertVisible, onSendDrone }
     const script = document.createElement('script');
     script.src =
       // Google Maps API Key: AIzaSyB2YzDb8YdUG0a90eYJogkIdyzcCKtk2tE
-      'https://maps.googleapis.com/maps/api/js?key=SUA_CHAVE_AQUI';
+      'https://maps.googleapis.com/maps/api/js?key=AIzaSyB2YzDb8YdUG0a90eYJogkIdyzcCKtk2tE';
     script.async = true;
     script.defer = true;
     script.dataset.map = 'vitibrain-google-maps';
