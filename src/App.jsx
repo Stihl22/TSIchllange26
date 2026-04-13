@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Bot, Droplets, Grape, Map, Plane } from 'lucide-react';
 import OverviewMap from './components/OverviewMap';
 import DiseaseAI from './components/DiseaseAI';
@@ -12,11 +12,70 @@ const views = {
   iot: { component: IoTSensor, title: 'Sensores no Terreno', icon: Droplets },
 };
 
+const alertSimulation = [
+  {
+    level: 'critical',
+    message:
+      'Aviso: Deteção de Míldio (Fungo) na Parcela Norte (Vinhas Velhas). Ação recomendada: Aplicação de tratamento fitossanitário imediato.',
+    targetView: 'disease',
+  },
+  {
+    level: 'warning',
+    message:
+      'Alerta: Stress Hídrico detetado na Parcela Sul. Humidade do solo a 15%. Ação: Sistema de rega gota-a-gota acionado automaticamente.',
+    targetView: 'iot',
+  },
+  {
+    level: 'critical',
+    message:
+      'Alerta Meteorológico: Risco extremo de escaldão nas uvas. Temperatura na copa da videira excede os 38ºC. Ação: Aumentar ensombramento.',
+    targetView: 'iot',
+  },
+  {
+    level: 'infoBlue',
+    message:
+      'Análise de Drones Concluída: O voo multiespectral da Parcela Nascente terminou com sucesso. Mapa de vigor vegetativo atualizado.',
+    targetView: 'drone',
+  },
+  {
+    level: 'warning',
+    message:
+      'Aviso: Possível foco de Cigarrinha-Verde (Praga) no setor B4. Confirme no mapa de calor.',
+    targetView: 'drone',
+  },
+  {
+    level: 'infoGreen',
+    message:
+      'Estado de Maturação: A Parcela Central atingiu o nível ideal de açúcares (Brix). Pronta para planeamento de vindima.',
+    targetView: 'overview',
+  },
+];
+
 export default function App() {
   const [activeView, setActiveView] = useState('overview');
+  const [activeAlertIndex, setActiveAlertIndex] = useState(0);
+  const [isAlertVisible, setIsAlertVisible] = useState(true);
 
   const CurrentView = views[activeView];
   const ViewComponent = CurrentView.component;
+  const activeAlert = alertSimulation[activeAlertIndex];
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setIsAlertVisible(false);
+
+      setTimeout(() => {
+        setActiveAlertIndex((previous) => {
+          const nextIndex = (previous + 1) % alertSimulation.length;
+          setActiveView(alertSimulation[nextIndex].targetView);
+          return nextIndex;
+        });
+        setIsAlertVisible(true);
+      }, 320);
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div className="h-svh w-full overflow-hidden bg-stone-50 text-stone-900">
@@ -59,7 +118,10 @@ export default function App() {
           <div className="mx-auto flex h-full w-full max-w-7xl flex-col gap-4 md:gap-5">
             <h2 className="text-lg font-semibold text-stone-800 sm:text-xl">{CurrentView.title}</h2>
             <section className="min-h-0 flex-1">
-              <ViewComponent />
+              <ViewComponent
+                activeAlert={activeAlert}
+                isAlertVisible={isAlertVisible}
+              />
             </section>
           </div>
         </main>
