@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Bot, Droplets, Grape, Map, Plane } from 'lucide-react';
 import OverviewMap from './components/OverviewMap';
 import DiseaseAI from './components/DiseaseAI';
@@ -15,38 +15,32 @@ const views = {
 const alertSimulation = [
   {
     level: 'critical',
-    message:
-      'Aviso: Deteção de Míldio (Fungo) na Parcela Norte (Vinhas Velhas). Ação recomendada: Aplicação de tratamento fitossanitário imediato.',
+    message: 'Aviso: Deteção de Míldio na Parcela Norte.',
     targetView: 'disease',
   },
   {
     level: 'warning',
-    message:
-      'Alerta: Stress Hídrico detetado na Parcela Sul. Humidade do solo a 15%. Ação: Sistema de rega gota-a-gota acionado automaticamente.',
+    message: 'Alerta: Stress Hídrico detetado. Humidade a 15%.',
     targetView: 'iot',
   },
   {
     level: 'critical',
-    message:
-      'Alerta Meteorológico: Risco extremo de escaldão nas uvas. Temperatura na copa da videira excede os 38ºC. Ação: Aumentar ensombramento.',
+    message: 'Alerta: Risco extremo de escaldão nas uvas.',
     targetView: 'iot',
   },
   {
     level: 'infoBlue',
-    message:
-      'Análise de Drones Concluída: O voo multiespectral da Parcela Nascente terminou com sucesso. Mapa de vigor vegetativo atualizado.',
+    message: 'Análise: O voo multiespectral terminou.',
     targetView: 'drone',
   },
   {
     level: 'warning',
-    message:
-      'Aviso: Possível foco de Cigarrinha-Verde (Praga) no setor B4. Confirme no mapa de calor.',
+    message: 'Aviso: Possível foco de Cigarrinha-Verde.',
     targetView: 'drone',
   },
   {
     level: 'infoGreen',
-    message:
-      'Estado de Maturação: A Parcela Central atingiu o nível ideal de açúcares (Brix). Pronta para planeamento de vindima.',
+    message: 'Maturação Ideal Atingida.',
     targetView: 'overview',
   },
 ];
@@ -55,27 +49,38 @@ export default function App() {
   const [activeView, setActiveView] = useState('overview');
   const [activeAlertIndex, setActiveAlertIndex] = useState(0);
   const [isAlertVisible, setIsAlertVisible] = useState(true);
+  const [isTransmissionOpen, setIsTransmissionOpen] = useState(false);
+  const nextAlertTimerRef = useRef(null);
 
   const CurrentView = views[activeView];
   const ViewComponent = CurrentView.component;
   const activeAlert = alertSimulation[activeAlertIndex];
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setIsAlertVisible(false);
-
-      setTimeout(() => {
-        setActiveAlertIndex((previous) => {
-          const nextIndex = (previous + 1) % alertSimulation.length;
-          setActiveView(alertSimulation[nextIndex].targetView);
-          return nextIndex;
-        });
-        setIsAlertVisible(true);
-      }, 320);
-    }, 30000);
-
-    return () => clearInterval(interval);
+  useEffect(() => () => {
+    if (nextAlertTimerRef.current) {
+      clearTimeout(nextAlertTimerRef.current);
+    }
   }, []);
+
+  const handleSendDrone = () => {
+    if (!activeAlert) return;
+    setActiveView(activeAlert.targetView);
+    setIsTransmissionOpen(true);
+  };
+
+  const handleCloseTransmission = () => {
+    setIsTransmissionOpen(false);
+    setIsAlertVisible(false);
+
+    if (nextAlertTimerRef.current) {
+      clearTimeout(nextAlertTimerRef.current);
+    }
+
+    nextAlertTimerRef.current = setTimeout(() => {
+      setActiveAlertIndex((previous) => (previous + 1) % alertSimulation.length);
+      setIsAlertVisible(true);
+    }, 3000);
+  };
 
   return (
     <div className="h-svh w-full overflow-hidden bg-stone-50 text-stone-900">
@@ -121,11 +126,49 @@ export default function App() {
               <ViewComponent
                 activeAlert={activeAlert}
                 isAlertVisible={isAlertVisible}
+                onSendDrone={handleSendDrone}
               />
             </section>
           </div>
         </main>
       </div>
+
+      {isTransmissionOpen && (
+        <div className="transmission-overlay">
+          <div className="transmission-modal">
+            <div className="transmission-header">
+              <div className="transmission-live">
+                <span className="transmission-live-dot" />
+                <p className="transmission-title">LIVE: Câmara do Drone</p>
+              </div>
+              <button
+                type="button"
+                onClick={handleCloseTransmission}
+                className="transmission-close-icon"
+                aria-label="Fechar transmissão"
+              >
+                X
+              </button>
+            </div>
+
+            <video
+              src="/drone.mp4"
+              autoPlay
+              loop
+              muted
+              style={{ width: '100%', borderBottomLeftRadius: '8px', borderBottomRightRadius: '8px' }}
+            />
+
+            <button
+              type="button"
+              onClick={handleCloseTransmission}
+              className="transmission-close-button"
+            >
+              Fechar
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

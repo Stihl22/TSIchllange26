@@ -24,8 +24,18 @@ const alertStyles = {
   },
 };
 
-export default function OverviewMap({ activeAlert, isAlertVisible }) {
+const roedaCenter = { lat: 41.1924, lng: -7.5456 };
+const mapPolygon = [
+  { lat: 41.1936, lng: -7.548 },
+  { lat: 41.1942, lng: -7.5439 },
+  { lat: 41.1918, lng: -7.5414 },
+  { lat: 41.1901, lng: -7.5442 },
+  { lat: 41.1907, lng: -7.5482 },
+];
+
+export default function OverviewMap({ activeAlert, isAlertVisible, onSendDrone }) {
   const [isLoading, setIsLoading] = useState(true);
+  const [mapError, setMapError] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -34,6 +44,73 @@ export default function OverviewMap({ activeAlert, isAlertVisible }) {
 
     return () => clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    if (isLoading) return;
+
+    let isMounted = true;
+    const mapElement = document.getElementById('vitibrain-google-map');
+    if (!mapElement) return;
+
+    const initializeMap = () => {
+      if (!window.google?.maps || !isMounted) return;
+
+      const map = new window.google.maps.Map(mapElement, {
+        center: roedaCenter,
+        zoom: 15,
+        mapTypeId: 'satellite',
+      });
+
+      new window.google.maps.Marker({
+        position: roedaCenter,
+        map,
+        title: 'Quinta da Roêda',
+      });
+
+      new window.google.maps.Polygon({
+        paths: mapPolygon,
+        strokeColor: '#10b981',
+        strokeOpacity: 0.9,
+        strokeWeight: 2,
+        fillColor: '#10b981',
+        fillOpacity: 0.2,
+        map,
+      });
+    };
+
+    if (window.google?.maps) {
+      initializeMap();
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    const existingScript = document.querySelector('script[data-map="vitibrain-google-maps"]');
+    if (existingScript) {
+      existingScript.addEventListener('load', initializeMap);
+      existingScript.addEventListener('error', () => setMapError(true));
+      return () => {
+        isMounted = false;
+        existingScript.removeEventListener('load', initializeMap);
+      };
+    }
+
+    const script = document.createElement('script');
+    script.src =
+      // Google Maps API Key: AIzaSyB2YzDb8YdUG0a90eYJogkIdyzcCKtk2tE
+      'https://maps.googleapis.com/maps/api/js?key=SUA_CHAVE_AQUI';
+    script.async = true;
+    script.defer = true;
+    script.dataset.map = 'vitibrain-google-maps';
+    script.addEventListener('load', initializeMap);
+    script.addEventListener('error', () => setMapError(true));
+    document.body.appendChild(script);
+
+    return () => {
+      isMounted = false;
+      script.removeEventListener('load', initializeMap);
+    };
+  }, [isLoading]);
 
   if (isLoading) {
     return (
@@ -62,21 +139,26 @@ export default function OverviewMap({ activeAlert, isAlertVisible }) {
           </div>
         </div>
 
-        <div className="flex min-h-[430px] flex-col items-center justify-center rounded-2xl bg-stone-100 text-center">
-          <div className="mb-4 rounded-full bg-white p-4 text-emerald-600 shadow-sm">
-            <MapPinned size={34} />
-          </div>
-          <h3 className="text-lg font-semibold text-stone-700">Área central de mapa</h3>
-          <p className="mt-2 max-w-md text-sm text-stone-500">
-            [Inserir Imagem Mapa Quinta da Roêda aqui]
-          </p>
+        <div className="relative min-h-[430px] overflow-hidden rounded-2xl bg-stone-100">
+          <div id="vitibrain-google-map" className="h-full min-h-[430px] w-full" />
+          {mapError && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-stone-100/95 text-center">
+              <div className="mb-4 rounded-full bg-white p-4 text-emerald-600 shadow-sm">
+                <MapPinned size={34} />
+              </div>
+              <h3 className="text-lg font-semibold text-stone-700">Google Maps indisponível</h3>
+              <p className="mt-2 max-w-md text-sm text-stone-500">
+                Verifique a chave da API e a ligação de rede.
+              </p>
+            </div>
+          )}
         </div>
       </section>
 
       <aside className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
         <div className="mb-4 flex items-center gap-2">
           <Bell size={16} className="text-emerald-600" />
-          <h4 className="text-sm font-semibold text-stone-700">Avisos Recentes</h4>
+          <h4 className="text-sm font-semibold text-stone-700">Painel de Alertas</h4>
         </div>
 
         <div
@@ -95,6 +177,13 @@ export default function OverviewMap({ activeAlert, isAlertVisible }) {
                 </span>
               </div>
               <p className="text-sm leading-relaxed">{activeAlert.message}</p>
+              <button
+                type="button"
+                onClick={onSendDrone}
+                className="mt-4 inline-flex w-full items-center justify-center rounded-lg bg-stone-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-stone-700"
+              >
+                Mandar o Drone →
+              </button>
             </>
           ) : (
             <p className="text-sm">A aguardar notificações do sistema.</p>
